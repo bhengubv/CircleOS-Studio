@@ -8,6 +8,7 @@
  */
 
 const API_BASE = 'https://sleptonapi.thegeeknetwork.co.za';
+const WAITLIST_URL = `${API_BASE}/api/circle/waitlist`;
 
 // Maps the device radio value to brand/model fields expected by the API
 const DEVICE_META: Record<string, { device_brand: string; device_model: string }> = {
@@ -37,7 +38,7 @@ async function submitForm(): Promise<void> {
   btn.textContent     = 'Submitting…';
 
   try {
-    const res = await fetch(`${API_BASE}/api/os/waitlist`, {
+    const res = await fetch(WAITLIST_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

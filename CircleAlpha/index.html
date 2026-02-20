@@ -80,7 +80,7 @@
       margin-bottom: 6px;
     }
 
-    select, input[type="email"] {
+    select, input[type="email"], input[type="text"] {
       width: 100%;
       padding: 12px 14px;
       background: var(--c-bg);
@@ -94,7 +94,7 @@
       outline: none;
       transition: border-color .2s;
     }
-    select:focus, input[type="email"]:focus {
+    select:focus, input[type="email"]:focus, input[type="text"]:focus {
       border-color: var(--c-primary);
     }
 
@@ -226,6 +226,16 @@
   <label for="email">Email address</label>
   <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required />
 
+  <!-- Country -->
+  <label for="country">Country</label>
+  <input type="text" id="country" placeholder="e.g. South Africa" autocomplete="country-name" required />
+
+  <!-- Developer checkbox -->
+  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--c-text);margin-bottom:24px">
+    <input type="checkbox" id="is-developer" style="width:16px;height:16px;accent-color:var(--c-primary)" />
+    I'm a developer / want to submit bug reports
+  </label>
+
   <button class="btn" id="btn-submit" onclick="submitForm()" disabled>
     Join Waitlist
   </button>
@@ -256,13 +266,16 @@
   }
 
   function validateForm() {
-    const device = document.querySelector('input[name="device"]:checked');
-    const email  = document.getElementById('email').value.trim();
-    const valid  = device && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const device  = document.querySelector('input[name="device"]:checked');
+    const email   = document.getElementById('email').value.trim();
+    const country = document.getElementById('country').value.trim();
+    const valid   = device && email && country
+                    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     document.getElementById('btn-submit').disabled = !valid;
   }
 
   document.getElementById('email').addEventListener('input', validateForm);
+  document.getElementById('country').addEventListener('input', validateForm);
 </script>
 </body>
 </html>

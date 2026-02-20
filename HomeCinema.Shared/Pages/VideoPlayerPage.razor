@@ -1,0 +1,341 @@
+@page "/player"
+@inject IJSRuntime JS
+@inject IPlaybackHistoryService History
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>@_title — HomeCinema</PageTitle>
+
+<div class="player-page" @onclick="ToggleControls">
+    <video id="hc-video"
+           class="player-video aspect-@_aspectMode"
+           src="@_uri"
+           autoplay
+           playsinline
+           @onclick:stopPropagation="true">
+    </video>
+
+    @if (_resumeMs > 0)
+    {
+        <div class="resume-banner" @onclick:stopPropagation="true">
+            <span>Resume from @FormatMs(_resumeMs)?</span>
+            <button class="resume-btn" @onclick="ResumePlayback">Resume</button>
+            <button class="resume-btn resume-btn--secondary" @onclick="DismissResume">Start over</button>
+        </div>
+    }
+
+    @if (_subtitleText is not null)
+    {
+        <div class="subtitle-overlay">@_subtitleText</div>
+    }
+
+    <div class="player-controls @(_controlsVisible ? "player-controls--visible" : "")">
+        <div class="player-title-bar" @onclick:stopPropagation="true">
+            <button class="player-back" @onclick="GoBack" aria-label="Back">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                </svg>
+            </button>
+            <span class="player-title-text">@_title</span>
+            <div class="player-actions">
+                <button class="player-action-btn" @onclick="CycleAspect" aria-label="Aspect ratio (@_aspectMode)">
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+                        <path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z"/>
+                    </svg>
+                </button>
+                <button class="player-action-btn" @onclick="ShowSleepDialog" aria-label="Sleep timer">
+                    <svg viewBox="0 0 24 24" fill="@(_sleepTimerActive ? "#D4A574" : "currentColor")" width="22" height="22">
+                        <path d="M22 5.72l-4.6-3.86-1.29 1.53 4.6 3.86L22 5.72zM7.88 3.39L6.6 1.86 2 5.71l1.29 1.53 4.59-3.85zM12.5 8H11v6l4.75 2.85.75-1.23-4-2.37V8zM12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 16c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="player-center" @onclick:stopPropagation="true">
+            <button class="player-seek-btn" @onclick="() => SeekRelative(-10000)" aria-label="Rewind 10 seconds">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36">
+                    <path d="M12.5 3C8.03 3 4.2 5.94 2.96 10H5.1c1.15-2.94 3.99-5 7.4-5 4.42 0 8 3.58 8 8s-3.58 8-8 8c-3.12 0-5.83-1.78-7.24-4.38L8.5 16 7 10H1l2.54 2.54C5.09 16.03 8.53 19 12.5 19c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4 2.5.75-1.23-3.25-1.98V8H11.5z"/>
+                </svg>
+            </button>
+            <button class="player-play-btn" @onclick="TogglePlay" aria-label="@(_playing ? "Pause" : "Play")">
+                @if (_playing)
+                {
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                }
+                else
+                {
+                    <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                }
+            </button>
+            <button class="player-seek-btn" @onclick="() => SeekRelative(10000)" aria-label="Forward 10 seconds">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36">
+                    <path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="player-bottom" @onclick:stopPropagation="true">
+            <div class="player-time-row">
+                <span class="player-time">@FormatMs(_positionMs)</span>
+                <input type="range" class="player-seekbar" min="0" max="@(_durationMs > 0 ? _durationMs : 1)"
+                       value="@_positionMs"
+                       @oninput="OnSeekInput" @onchange="OnSeekChange" />
+                <span class="player-time">@FormatMs(_durationMs)</span>
+            </div>
+            <div class="player-speed-row">
+                @foreach (var s in _speeds)
+                {
+                    <button class="speed-btn @(s == _speed ? "speed-btn--active" : "")"
+                            @onclick="() => SetSpeed(s)">@s×</button>
+                }
+                <span class="player-speed-divider"></span>
+                @if (_abLoopStart.HasValue && _abLoopEnd.HasValue)
+                {
+                    <span class="ab-badge">A-B</span>
+                }
+                <button class="ab-btn" @onclick="SetAbPoint"
+                        title="@(_abLoopStart is null ? "Set A point" : _abLoopEnd is null ? "Set B point" : "Clear A-B loop")">
+                    A→B
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (_sleepTimerActive)
+    {
+        <div class="sleep-badge">Sleep @FormatMs(_sleepRemainingMs)</div>
+    }
+</div>
+
+@if (_showSleepDialog)
+{
+    <div class="modal-backdrop" @onclick="() => _showSleepDialog = false">
+        <div class="modal-card" @onclick:stopPropagation="true">
+            <h3 class="modal-title">Sleep timer</h3>
+            @foreach (var mins in new[] { 15, 30, 45, 60 })
+            {
+                <button class="modal-option" @onclick="() => StartSleepTimer(mins)">@mins minutes</button>
+            }
+            @if (_sleepTimerActive)
+            {
+                <button class="modal-option modal-option--danger" @onclick="CancelSleepTimer">Cancel timer</button>
+            }
+            <button class="modal-cancel" @onclick="() => _showSleepDialog = false">Dismiss</button>
+        </div>
+    </div>
+}
+
+@code {
+    [SupplyParameterFromQuery] private string? uri { get; set; }
+    [SupplyParameterFromQuery] private string? title { get; set; }
+
+    private string _uri   => uri   ?? string.Empty;
+    private string _title => title ?? "Now Playing";
+
+    private bool  _playing;
+    private long  _positionMs;
+    private long  _durationMs;
+    private bool  _controlsVisible = true;
+    private long  _resumeMs;
+    private string? _subtitleText { get; set; }  // set by SubtitleLoader in future iteration
+    private string _aspectMode = "fit";
+    private float  _speed = 1f;
+    private bool   _showSleepDialog;
+    private bool   _sleepTimerActive;
+    private long   _sleepRemainingMs;
+    private long?  _abLoopStart;
+    private long?  _abLoopEnd;
+    private bool   _seekDragging;
+
+    private static readonly float[] _speeds = { 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f };
+    private static readonly string[] _aspectModes = { "fit", "fill", "stretch" };
+
+    private System.Timers.Timer? _pollTimer;
+    private System.Timers.Timer? _hideControlsTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrEmpty(_uri))
+        {
+            var saved = await History.GetPositionAsync(_uri);
+            if (saved >= 5000) _resumeMs = saved;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await JS.InvokeVoidAsync("homeCinema.init", "hc-video");
+        _playing = true;
+        StartPollTimer();
+        ScheduleHideControls();
+    }
+
+    private void StartPollTimer()
+    {
+        _pollTimer = new System.Timers.Timer(1000);
+        _pollTimer.Elapsed += async (_, _) =>
+        {
+            _positionMs = await JS.InvokeAsync<long>("homeCinema.getPosition");
+            _durationMs = await JS.InvokeAsync<long>("homeCinema.getDuration");
+            await CheckAbLoop();
+            await CheckSleepTimer();
+            if (!_seekDragging) await InvokeAsync(StateHasChanged);
+        };
+        _pollTimer.Start();
+    }
+
+    private void ScheduleHideControls()
+    {
+        _hideControlsTimer?.Stop();
+        _hideControlsTimer?.Dispose();
+        _hideControlsTimer = new System.Timers.Timer(3500);
+        _hideControlsTimer.Elapsed += async (_, _) =>
+        {
+            _hideControlsTimer!.Stop();
+            if (_playing) { _controlsVisible = false; await InvokeAsync(StateHasChanged); }
+        };
+        _hideControlsTimer.Start();
+    }
+
+    private void ToggleControls()
+    {
+        _controlsVisible = !_controlsVisible;
+        if (_controlsVisible) ScheduleHideControls();
+        StateHasChanged();
+    }
+
+    private async Task TogglePlay()
+    {
+        if (_playing)
+        {
+            await JS.InvokeVoidAsync("homeCinema.pause");
+            _playing = false;
+            _hideControlsTimer?.Stop();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("homeCinema.play");
+            _playing = true;
+            ScheduleHideControls();
+        }
+        if (!string.IsNullOrEmpty(_uri))
+            await History.SavePositionAsync(_uri, _title, _positionMs);
+    }
+
+    private async Task SeekRelative(long deltaMs)
+    {
+        var target = Math.Max(0, _positionMs + deltaMs);
+        await JS.InvokeVoidAsync("homeCinema.seekTo", target);
+        _positionMs = target;
+    }
+
+    private void OnSeekInput(ChangeEventArgs e)
+    {
+        _seekDragging = true;
+        if (long.TryParse(e.Value?.ToString(), out var v)) _positionMs = v;
+    }
+
+    private async Task OnSeekChange(ChangeEventArgs e)
+    {
+        _seekDragging = false;
+        if (long.TryParse(e.Value?.ToString(), out var v))
+        {
+            await JS.InvokeVoidAsync("homeCinema.seekTo", v);
+            _positionMs = v;
+        }
+    }
+
+    private async Task SetSpeed(float s)
+    {
+        _speed = s;
+        await JS.InvokeVoidAsync("homeCinema.setSpeed", s);
+    }
+
+    private void CycleAspect()
+    {
+        var idx = Array.IndexOf(_aspectModes, _aspectMode);
+        _aspectMode = _aspectModes[(idx + 1) % _aspectModes.Length];
+    }
+
+    private async Task ResumePlayback()
+    {
+        await JS.InvokeVoidAsync("homeCinema.seekTo", _resumeMs);
+        _resumeMs = 0;
+    }
+
+    private void DismissResume() => _resumeMs = 0;
+
+    private void ShowSleepDialog() => _showSleepDialog = true;
+
+    private void StartSleepTimer(int minutes)
+    {
+        _showSleepDialog   = false;
+        _sleepTimerActive  = true;
+        _sleepRemainingMs  = minutes * 60 * 1000L;
+    }
+
+    private void CancelSleepTimer()
+    {
+        _showSleepDialog  = false;
+        _sleepTimerActive = false;
+        _sleepRemainingMs = 0;
+    }
+
+    private async Task CheckSleepTimer()
+    {
+        if (!_sleepTimerActive) return;
+        _sleepRemainingMs -= 1000;
+        if (_sleepRemainingMs <= 0)
+        {
+            _sleepTimerActive = false;
+            await JS.InvokeVoidAsync("homeCinema.pause");
+            _playing = false;
+        }
+    }
+
+    private void SetAbPoint()
+    {
+        if (!_abLoopStart.HasValue)  { _abLoopStart = _positionMs; return; }
+        if (!_abLoopEnd.HasValue)    { _abLoopEnd   = _positionMs; return; }
+        _abLoopStart = null;
+        _abLoopEnd   = null;
+    }
+
+    private async Task CheckAbLoop()
+    {
+        if (_abLoopStart.HasValue && _abLoopEnd.HasValue && _positionMs >= _abLoopEnd.Value)
+            await JS.InvokeVoidAsync("homeCinema.seekTo", _abLoopStart.Value);
+    }
+
+    private async Task GoBack()
+    {
+        if (!string.IsNullOrEmpty(_uri))
+            await History.SavePositionAsync(_uri, _title, _positionMs);
+        await JS.InvokeVoidAsync("homeCinema.pause");
+        Nav.NavigateTo("/");
+    }
+
+    private static string FormatMs(long ms)
+    {
+        if (ms <= 0) return "--:--";
+        var ts = TimeSpan.FromMilliseconds(ms);
+        return ts.Hours > 0
+            ? $"{ts.Hours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _pollTimer?.Stop();
+        _pollTimer?.Dispose();
+        _hideControlsTimer?.Stop();
+        _hideControlsTimer?.Dispose();
+        if (!string.IsNullOrEmpty(_uri))
+            await History.SavePositionAsync(_uri, _title, _positionMs);
+    }
+}

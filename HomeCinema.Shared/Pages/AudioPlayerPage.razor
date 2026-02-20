@@ -1,0 +1,266 @@
+@page "/audio-player"
+@inject IJSRuntime JS
+@inject IMediaLibraryService Library
+@inject IPlaybackHistoryService History
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>@_title — HomeCinema</PageTitle>
+
+<div class="audio-page">
+    <button class="player-back audio-back" @onclick="GoBack" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+        </svg>
+    </button>
+
+    <audio id="hc-audio" src="@_uri" preload="metadata"></audio>
+
+    <div class="audio-art" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+        </svg>
+    </div>
+
+    <div class="audio-meta">
+        <span class="audio-title">@_title</span>
+        <span class="audio-artist">@(_artist ?? "Unknown Artist")</span>
+    </div>
+
+    <div class="audio-progress">
+        <span class="audio-time">@FormatMs(_positionMs)</span>
+        <input type="range" class="player-seekbar" min="0" max="@(_durationMs > 0 ? _durationMs : 1)"
+               value="@_positionMs"
+               @oninput="OnSeekInput" @onchange="OnSeekChange" />
+        <span class="audio-time">@FormatMs(_durationMs)</span>
+    </div>
+
+    <div class="audio-controls">
+        <button class="audio-ctrl-btn" @onclick="ToggleShuffle" aria-label="Shuffle" title="@(_shuffle ? "Shuffle on" : "Shuffle off")">
+            <svg viewBox="0 0 24 24" fill="@(_shuffle ? "#D4A574" : "currentColor")" width="24" height="24">
+                <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+            </svg>
+        </button>
+        <button class="audio-ctrl-btn" @onclick="PlayPrev" aria-label="Previous">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+            </svg>
+        </button>
+        <button class="audio-play-btn" @onclick="TogglePlay" aria-label="@(_playing ? "Pause" : "Play")">
+            @if (_playing)
+            {
+                <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+            }
+        </button>
+        <button class="audio-ctrl-btn" @onclick="PlayNext" aria-label="Next">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+            </svg>
+        </button>
+        <button class="audio-ctrl-btn" @onclick="CycleRepeat" aria-label="Repeat" title="Repeat: @_repeat">
+            @if (_repeat == RepeatMode.One)
+            {
+                <svg viewBox="0 0 24 24" fill="#D4A574" width="24" height="24">
+                    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4zm-4-2V9h-1l-2 1v1h1.5v4H13z"/>
+                </svg>
+            }
+            else if (_repeat == RepeatMode.All)
+            {
+                <svg viewBox="0 0 24 24" fill="#D4A574" width="24" height="24">
+                    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+                </svg>
+            }
+            else
+            {
+                <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                    <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+                </svg>
+            }
+        </button>
+    </div>
+
+    <div class="audio-speed-row">
+        @foreach (var s in _speeds)
+        {
+            <button class="speed-btn @(s == _speed ? "speed-btn--active" : "")"
+                    @onclick="() => SetSpeed(s)">@s×</button>
+        }
+    </div>
+
+    @if (_queue.Count > 1)
+    {
+        <div class="audio-queue">
+            <p class="queue-label">Up next</p>
+            <div class="media-list" role="list">
+                @for (int i = _queueIndex + 1; i < Math.Min(_queue.Count, _queueIndex + 6); i++)
+                {
+                    var idx = i;
+                    <button class="media-row" role="listitem" @onclick="() => JumpTo(idx)">
+                        <div class="media-info">
+                            <span class="media-title">@_queue[idx].Title</span>
+                            <span class="media-meta">@(_queue[idx].Artist ?? "Unknown Artist") · @_queue[idx].DurationString</span>
+                        </div>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery] private string? uri   { get; set; }
+    [SupplyParameterFromQuery] private string? title { get; set; }
+
+    private string _uri   => uri   ?? string.Empty;
+    private string _title => title ?? "Now Playing";
+    private string? _artist;
+
+    private bool  _playing;
+    private long  _positionMs;
+    private long  _durationMs;
+    private bool  _seekDragging;
+    private float _speed = 1f;
+    private bool  _shuffle;
+    private RepeatMode _repeat = RepeatMode.None;
+
+    private List<MediaItem> _queue = new();
+    private int _queueIndex;
+
+    private static readonly float[] _speeds = { 0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f };
+
+    private enum RepeatMode { None, All, One }
+
+    private System.Timers.Timer? _pollTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var all = await Library.GetAudioAsync();
+        _queue = all.ToList();
+        _queueIndex = _queue.FindIndex(t => t.Uri == _uri);
+        if (_queueIndex < 0) _queueIndex = 0;
+        var current = _queueIndex < _queue.Count ? _queue[_queueIndex] : null;
+        _artist = current?.Artist;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await JS.InvokeVoidAsync("homeCinema.initAudio", "hc-audio");
+        _playing = true;
+        StartPollTimer();
+    }
+
+    private void StartPollTimer()
+    {
+        _pollTimer = new System.Timers.Timer(1000);
+        _pollTimer.Elapsed += async (_, _) =>
+        {
+            _positionMs = await JS.InvokeAsync<long>("homeCinema.getPosition");
+            _durationMs = await JS.InvokeAsync<long>("homeCinema.getDuration");
+            if (!_seekDragging) await InvokeAsync(StateHasChanged);
+        };
+        _pollTimer.Start();
+    }
+
+    private async Task TogglePlay()
+    {
+        if (_playing) { await JS.InvokeVoidAsync("homeCinema.pause"); _playing = false; }
+        else          { await JS.InvokeVoidAsync("homeCinema.play");  _playing = true;  }
+    }
+
+    private void OnSeekInput(ChangeEventArgs e)
+    {
+        _seekDragging = true;
+        if (long.TryParse(e.Value?.ToString(), out var v)) _positionMs = v;
+    }
+
+    private async Task OnSeekChange(ChangeEventArgs e)
+    {
+        _seekDragging = false;
+        if (long.TryParse(e.Value?.ToString(), out var v))
+        {
+            await JS.InvokeVoidAsync("homeCinema.seekTo", v);
+            _positionMs = v;
+        }
+    }
+
+    private async Task SetSpeed(float s) { _speed = s; await JS.InvokeVoidAsync("homeCinema.setSpeed", s); }
+
+    private void ToggleShuffle() => _shuffle = !_shuffle;
+
+    private void CycleRepeat() => _repeat = _repeat switch
+    {
+        RepeatMode.None => RepeatMode.All,
+        RepeatMode.All  => RepeatMode.One,
+        _               => RepeatMode.None,
+    };
+
+    private async Task PlayNext()
+    {
+        if (_queue.Count == 0) return;
+        if (_shuffle)
+            _queueIndex = new Random().Next(_queue.Count);
+        else if (_queueIndex + 1 < _queue.Count)
+            _queueIndex++;
+        else if (_repeat == RepeatMode.All)
+            _queueIndex = 0;
+        else
+            return;
+        await LoadCurrent();
+    }
+
+    private async Task PlayPrev()
+    {
+        if (_positionMs > 3000) { await JS.InvokeVoidAsync("homeCinema.seekTo", 0L); return; }
+        if (_queueIndex > 0) _queueIndex--;
+        await LoadCurrent();
+    }
+
+    private async Task JumpTo(int idx) { _queueIndex = idx; await LoadCurrent(); }
+
+    private async Task LoadCurrent()
+    {
+        var item = _queue[_queueIndex];
+        _artist = item.Artist;
+        _positionMs = 0;
+        Nav.NavigateTo(
+            $"/audio-player?uri={Uri.EscapeDataString(item.Uri)}&title={Uri.EscapeDataString(item.Title)}",
+            replace: true);
+        await JS.InvokeVoidAsync("homeCinema.loadSrc", item.Uri);
+        _playing = true;
+    }
+
+    // Called from audio element @onended — not wired via JS in this version;
+    // polling detects position >= duration instead.
+
+    private async Task GoBack()
+    {
+        await JS.InvokeVoidAsync("homeCinema.pause");
+        Nav.NavigateTo("/music");
+    }
+
+    private static string FormatMs(long ms)
+    {
+        if (ms <= 0) return "--:--";
+        var ts = TimeSpan.FromMilliseconds(ms);
+        return ts.Hours > 0
+            ? $"{ts.Hours}:{ts.Minutes:D2}:{ts.Seconds:D2}"
+            : $"{ts.Minutes:D2}:{ts.Seconds:D2}";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _pollTimer?.Stop();
+        _pollTimer?.Dispose();
+        if (!string.IsNullOrEmpty(_uri))
+            await History.SavePositionAsync(_uri, _title, _positionMs);
+    }
+}

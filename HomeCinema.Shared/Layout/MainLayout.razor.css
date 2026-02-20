@@ -1,0 +1,119 @@
+/* ============================================================
+   HomeCinema — Circle Design System shell layout
+   Palette: Deep #1A1F36 | Gold #D4A574 | Warm #F5F0EB
+   ============================================================ */
+
+.hc-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;          /* respects iOS safe-area */
+    background: #1A1F36;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+.hc-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    padding-top: max(12px, env(safe-area-inset-top));
+    background: rgba(26,31,54,0.97);
+    border-bottom: 1px solid rgba(212,165,116,0.18);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.hc-logo {
+    color: #D4A574;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.hc-search {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(212,165,116,0.25);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #F5F0EB;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+}
+.hc-search:focus         { border-color: #D4A574; }
+.hc-search::placeholder  { color: rgba(245,240,235,0.35); }
+
+/* ── Main content ── */
+.hc-main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* ── Bottom navigation ── */
+.hc-bottom-nav {
+    display: flex;
+    background: rgba(26,31,54,0.98);
+    border-top: 1px solid rgba(212,165,116,0.18);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 10px 4px;
+    color: rgba(245,240,235,0.45);
+    text-decoration: none;
+    font-size: 11px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    transition: color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+.nav-tab.active  { color: #D4A574; }
+.nav-tab:hover   { color: rgba(212,165,116,0.75); }
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+/* ── Blazor error UI ── */
+#blazor-error-ui {
+    background: #2a1f1f;
+    border-top: 1px solid #8b4444;
+    bottom: 0;
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 10px 16px;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+    color: #F5F0EB;
+    font-size: 13px;
+}
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 12px;
+    top: 10px;
+    color: rgba(245,240,235,0.6);
+}
+#blazor-error-ui .reload {
+    color: #D4A574;
+    margin-left: 8px;
+}

@@ -1,0 +1,61 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+
+<div class="hc-shell">
+
+    <header class="hc-header">
+        <span class="hc-logo">HomeCinema</span>
+        <input type="search"
+               class="hc-search"
+               placeholder="Search media…"
+               @bind="_searchQuery"
+               @bind:event="oninput" />
+    </header>
+
+    <main class="hc-main">
+        <CascadingValue Value="@_searchQuery" Name="SearchQuery">
+            @Body
+        </CascadingValue>
+    </main>
+
+    <nav class="hc-bottom-nav" aria-label="Main navigation">
+        <a href="/"        class="@Tab("/")"        aria-label="Videos">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+            </svg>
+            <span>Videos</span>
+        </a>
+        <a href="/music"   class="@Tab("/music")"   aria-label="Music">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
+            </svg>
+            <span>Music</span>
+        </a>
+        <a href="/streams" class="@Tab("/streams")" aria-label="Network Streams">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+            </svg>
+            <span>Streams</span>
+        </a>
+    </nav>
+
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@code {
+    private string _searchQuery = string.Empty;
+
+    private string Tab(string path)
+    {
+        var cur = new Uri(Nav.Uri).AbsolutePath;
+        bool active = path == "/"
+            ? cur == "/"
+            : cur.StartsWith(path, StringComparison.OrdinalIgnoreCase);
+        return active ? "nav-tab active" : "nav-tab";
+    }
+}

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CircleOS Alpha — Join the Waitlist</title>
+  <style>
+    /* ── Circle Design System tokens ────────────────────────────────────── */
+    :root {
+      --c-bg:      #0a0a0f;
+      --c-surface: #14141e;
+      --c-border:  #2a2a3a;
+      --c-primary: #6c47ff;
+      --c-primary-h: #8b6dff;
+      --c-text:    #e8e8f0;
+      --c-muted:   #888899;
+      --c-success: #22c55e;
+      --c-error:   #ef4444;
+      --radius:    12px;
+      --font:      'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Logo / hero ─────────────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .hero .logo {
+      width: 56px; height: 56px;
+      background: var(--c-primary);
+      border-radius: 50%;
+      margin: 0 auto 16px;
+    }
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      margin-bottom: 10px;
+    }
+    .hero p {
+      color: var(--c-muted);
+      max-width: 420px;
+      line-height: 1.6;
+      font-size: 1rem;
+    }
+
+    /* ── Card ────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: var(--radius);
+      padding: 36px;
+      width: 100%;
+      max-width: 460px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+    }
+
+    /* ── Form ────────────────────────────────────────────────────────────── */
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--c-muted);
+      margin-bottom: 6px;
+    }
+
+    select, input[type="email"] {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--c-bg);
+      border: 1px solid var(--c-border);
+      border-radius: 8px;
+      color: var(--c-text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      margin-bottom: 20px;
+      appearance: none;
+      outline: none;
+      transition: border-color .2s;
+    }
+    select:focus, input[type="email"]:focus {
+      border-color: var(--c-primary);
+    }
+
+    /* ── Device cards ────────────────────────────────────────────────────── */
+    .device-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .device-card {
+      border: 2px solid var(--c-border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .device-card:hover { border-color: var(--c-primary); }
+    .device-card.selected {
+      border-color: var(--c-primary);
+      background: rgba(108,71,255,.08);
+    }
+    .device-card input[type="radio"] {
+      position: absolute; opacity: 0; width: 0; height: 0;
+    }
+    .device-card .name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .device-card .spec {
+      font-size: 0.75rem;
+      color: var(--c-muted);
+      line-height: 1.4;
+    }
+    .device-card .badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      background: rgba(108,71,255,.2);
+      color: var(--c-primary);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    /* ── Submit button ───────────────────────────────────────────────────── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: var(--c-primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { background: var(--c-primary-h); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Error / success messages ─────────────────────────────────────────── */
+    .msg {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      display: none;
+    }
+    .msg.error   { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.3); color: var(--c-error); }
+    .msg.success { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.3); color: var(--c-success); }
+
+    /* ── Confirmation screen ─────────────────────────────────────────────── */
+    #confirmation { display: none; text-align: center; }
+    #confirmation .check {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+    #confirmation h2 { margin-bottom: 10px; }
+    #confirmation p  { color: var(--c-muted); line-height: 1.6; }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer {
+      margin-top: 32px;
+      font-size: 0.8rem;
+      color: var(--c-muted);
+      text-align: center;
+    }
+    footer a { color: var(--c-primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="logo"></div>
+  <h1>CircleOS Alpha</h1>
+  <p>Privacy-first Android, built from the ground up. Join the waitlist to be among the first to try it.</p>
+</div>
+
+<!-- Registration card -->
+<div class="card" id="reg-card">
+  <h2>Request Alpha Access</h2>
+
+  <!-- Device selector -->
+  <label>Select your device</label>
+  <div class="device-grid">
+    <label class="device-card" id="card-pixel6">
+      <input type="radio" name="device" value="pixel6" onchange="selectDevice(this)" />
+      <div class="badge">Reference</div>
+      <div class="name">Google Pixel 6</div>
+      <div class="spec">Tensor G1 · 8GB RAM<br>Android 12–15</div>
+    </label>
+    <label class="device-card" id="card-redmi">
+      <input type="radio" name="device" value="redmi_note12" onchange="selectDevice(this)" />
+      <div class="badge">Min. Supported</div>
+      <div class="name">Redmi Note 12</div>
+      <div class="spec">Snapdragon 685 · 6GB RAM<br>Android 12–13</div>
+    </label>
+  </div>
+
+  <!-- Email -->
+  <label for="email">Email address</label>
+  <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required />
+
+  <button class="btn" id="btn-submit" onclick="submitForm()" disabled>
+    Join Waitlist
+  </button>
+
+  <div class="msg" id="msg-error"></div>
+  <div class="msg" id="msg-success"></div>
+</div>
+
+<!-- Confirmation screen (shown after successful submit) -->
+<div class="card" id="confirmation">
+  <div class="check">✓</div>
+  <h2>You're on the list!</h2>
+  <p>We'll send an email to <strong id="confirmed-email">—</strong> when your device is approved for alpha access.</p>
+  <p style="margin-top:12px">You'll receive a link to <strong>install.circleos.co.za</strong> to get started.</p>
+</div>
+
+<footer>
+  Already have access? <a href="https://install.circleos.co.za">Install CircleOS →</a>
+</footer>
+
+<script type="module" src="/src/registration.js"></script>
+<script>
+  function selectDevice(radio) {
+    document.querySelectorAll('.device-card').forEach(c => c.classList.remove('selected'));
+    const label = radio.closest('.device-card');
+    if (label) label.classList.add('selected');
+    validateForm();
+  }
+
+  function validateForm() {
+    const device = document.querySelector('input[name="device"]:checked');
+    const email  = document.getElementById('email').value.trim();
+    const valid  = device && email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    document.getElementById('btn-submit').disabled = !valid;
+  }
+
+  document.getElementById('email').addEventListener('input', validateForm);
+</script>
+</body>
+</html>

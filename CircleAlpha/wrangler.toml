@@ -1,0 +1,7 @@
+name = "circleos-alpha"
+pages_build_output_dir = "."
+
+[[redirects]]
+from   = "/*"
+to     = "/index.html"
+status = 200

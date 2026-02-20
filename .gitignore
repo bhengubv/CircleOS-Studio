@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+*.user
+.vs/
+
+# macOS
+.DS_Store
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# MAUI
+**/*.aab
+**/*.apk
+**/*.ipa
+**/*.msix
+
+# NuGet
+*.nupkg
+packages/

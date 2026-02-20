@@ -1,0 +1,117 @@
+@page "/streams"
+@inject IPlaybackHistoryService History
+@inject NavigationManager Nav
+
+<PageTitle>Network Streams — HomeCinema</PageTitle>
+
+<div class="library-page">
+    <div class="streams-add">
+        @if (_showInput)
+        {
+            <div class="stream-input-row">
+                <input class="stream-url-input" type="url"
+                       placeholder="http:// · https:// · rtsp://"
+                       @bind="_newUrl" @bind:event="oninput"
+                       @onkeydown="OnKeyDown" autofocus />
+                <button class="stream-go-btn" @onclick="PlayNew" disabled="@(!IsValidUrl(_newUrl))">Play</button>
+                <button class="stream-cancel-btn" @onclick="() => _showInput = false">✕</button>
+            </div>
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <p class="stream-error">@_error</p>
+            }
+        }
+        else
+        {
+            <button class="stream-add-btn" @onclick="ShowInput">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" aria-hidden="true">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Add network stream
+            </button>
+        }
+    </div>
+
+    @if (_loading)
+    {
+        <div class="state-view">
+            <div class="spinner" aria-label="Loading"></div>
+            <p>Loading recent streams…</p>
+        </div>
+    }
+    else if (!_recent.Any())
+    {
+        <div class="state-view">
+            <svg class="state-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+            </svg>
+            <p>No recent streams</p>
+            <small>Add a network URL above to get started</small>
+        </div>
+    }
+    else
+    {
+        <div class="media-list" role="list">
+            @foreach (var url in _recent)
+            {
+                <button class="media-row" role="listitem" @onclick="() => PlayUrl(url)">
+                    <div class="media-thumb" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/>
+                        </svg>
+                    </div>
+                    <div class="media-info">
+                        <span class="media-title stream-url-label">@url</span>
+                        <span class="media-meta">Network stream</span>
+                    </div>
+                    <svg class="media-chevron" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<string> _recent = new();
+    private bool _loading = true;
+    private bool _showInput;
+    private string _newUrl = string.Empty;
+    private string _error = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _recent = (await History.GetRecentNetworkStreamsAsync(20)).ToList();
+        _loading = false;
+    }
+
+    private void ShowInput()
+    {
+        _showInput = true;
+        _newUrl = string.Empty;
+        _error = string.Empty;
+    }
+
+    private static bool IsValidUrl(string url) =>
+        !string.IsNullOrWhiteSpace(url) &&
+        (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+         url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+         url.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase) ||
+         url.StartsWith("rtp://", StringComparison.OrdinalIgnoreCase));
+
+    private async Task PlayNew()
+    {
+        if (!IsValidUrl(_newUrl)) { _error = "Unsupported URL scheme."; return; }
+        await History.SaveNetworkStreamAsync(_newUrl);
+        PlayUrl(_newUrl);
+    }
+
+    private void PlayUrl(string url) =>
+        Nav.NavigateTo($"/player?uri={Uri.EscapeDataString(url)}&title={Uri.EscapeDataString(url)}");
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await PlayNew();
+    }
+}

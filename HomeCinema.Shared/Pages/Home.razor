@@ -1,0 +1,67 @@
+@page "/"
+@inject IMediaLibraryService Library
+@inject NavigationManager Nav
+
+<PageTitle>Videos — HomeCinema</PageTitle>
+
+<div class="library-page">
+    @if (_loading)
+    {
+        <div class="state-view">
+            <div class="spinner" aria-label="Loading"></div>
+            <p>Scanning library…</p>
+        </div>
+    }
+    else if (!_filtered.Any())
+    {
+        <div class="state-view">
+            <svg class="state-icon" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+            </svg>
+            <p>No videos found</p>
+            <small>@(string.IsNullOrWhiteSpace(_search) ? "Check storage permissions in Settings" : "Try a different search")</small>
+        </div>
+    }
+    else
+    {
+        <div class="media-list" role="list">
+            @foreach (var item in _filtered)
+            {
+                <button class="media-row" role="listitem" @onclick="() => Open(item)">
+                    <div class="media-thumb" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8 12.5v-9l6 4.5-6 4.5z"/>
+                        </svg>
+                    </div>
+                    <div class="media-info">
+                        <span class="media-title">@item.Title</span>
+                        <span class="media-meta">@item.DurationString · @item.SizeString</span>
+                    </div>
+                    <svg class="media-chevron" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+                    </svg>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter(Name = "SearchQuery")] private string _search { get; set; } = string.Empty;
+
+    private List<MediaItem> _videos = new();
+    private bool _loading = true;
+
+    private IEnumerable<MediaItem> _filtered => string.IsNullOrWhiteSpace(_search)
+        ? _videos
+        : _videos.Where(v => v.Title.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _videos = (await Library.GetVideosAsync()).ToList();
+        _loading = false;
+    }
+
+    private void Open(MediaItem item) =>
+        Nav.NavigateTo($"/player?uri={Uri.EscapeDataString(item.Uri)}&title={Uri.EscapeDataString(item.Title)}");
+}
